@@ -21,8 +21,9 @@ fcl.config({
 
 function App() {
 
-  const [ user, setUser ] = useState();
-  const [ images, setImages ] = useState([])
+  const [user, setUser] = useState();
+  const [total_supply, setTotalSupply] = useState(0);
+  const [images, setImages] = useState([])
 
   const logIn = () => {
     fcl.authenticate();
@@ -35,9 +36,9 @@ function App() {
 
   const RenderGif = () => {
     const gifUrl = user?.addr
-        ? "https://media.giphy.com/media/VbnUQpnihPSIgIXuZv/giphy-downsized.gif"
-        : "https://i.giphy.com/media/Y2ZUWLrTy63j9T6qrK/giphy.webp";
-    return <img className="gif-image" src={gifUrl} height="300px" alt="Funny gif"/>;
+      ? "https://media.giphy.com/media/VbnUQpnihPSIgIXuZv/giphy-downsized.gif"
+      : "https://i.giphy.com/media/Y2ZUWLrTy63j9T6qrK/giphy.webp";
+    return <img className="gif-image" src={gifUrl} height="300px" alt="Funny gif" />;
   };
 
   const RenderLogin = () => {
@@ -58,15 +59,15 @@ function App() {
             Mint
           </button>
         </div>
-        {images.length > 0 ? 
+        {images.length > 0 ?
           <>
             <h2>Your NFTs</h2>
-              <div className="image-container">
-                {images}
-              </ div>
-          </> 
-        : ""}
-    </div>
+            <div className="image-container">
+              {images}
+            </ div>
+          </>
+          : ""}
+      </div>
     );
   }
 
@@ -89,26 +90,26 @@ function App() {
     // Empty the images array
     setImages([]);
     let IDs = [];
-    
+
     // Fetch the IDs with a script (no fees or signers)
     try {
       IDs = await fcl.query({
         cadence: `${getIDs}`,
         args: (arg, t) => [
-          arg(user.addr, types.Address), 
+          arg(user.addr, types.Address),
         ],
       })
-    } catch(err) {
+    } catch (err) {
       console.log("No NFTs Owned")
     }
-    
+
     let _imageSrc = []
-    try{
-      for(let i=0; i<IDs.length; i++) {
+    try {
+      for (let i = 0; i < IDs.length; i++) {
         const result = await fcl.query({
           cadence: `${getMetadata}`,
           args: (arg, t) => [
-            arg(user.addr, types.Address), 
+            arg(user.addr, types.Address),
             arg(IDs[i].toString(), types.UInt64),
           ],
         })
@@ -122,37 +123,51 @@ function App() {
           _imageSrc.push(result["thumbnail"])
         }
       }
-    } catch(err) {
+    } catch (err) {
       console.log(err)
     }
-    
-    if(images.length < _imageSrc.length) {
-      setImages((Array.from({length: _imageSrc.length}, (_, i) => i).map((number, index)=>
-        <img style={{margin:"10px", height: "150px"}} src={_imageSrc[index]} key={number} alt={"NFT #"+number}
+
+    if (images.length < _imageSrc.length) {
+      setImages((Array.from({ length: _imageSrc.length }, (_, i) => i).map((number, index) =>
+        <img style={{ margin: "10px", height: "150px" }} src={_imageSrc[index]} key={number} alt={"NFT #" + number}
         />
       )))
     }
   }
 
-  const mint = async() => {
+  useEffect(() => {
+    (async() => {
+      if (user && user.addr) {
+        let totalSupply;
+        try {
+          totalSupply = await fcl.query({
+            cadence: `${getTotalSupply}`
+          })
+        } catch (err) { console.log(err) }
+        setTotalSupply(totalSupply)
+      }
+    })()
+  }, [user])
+
+  const mint = async () => {
 
     let _totalSupply;
     try {
       _totalSupply = await fcl.query({
         cadence: `${getTotalSupply}`
       })
-    } catch(err) {console.log(err)}
-    
+    } catch (err) { console.log(err) }
+
     const _id = parseInt(_totalSupply) + 1;
-    
+
     try {
       const transactionId = await fcl.mutate({
         cadence: `${mintNFT}`,
         args: (arg, t) => [
           arg(user.addr, types.Address), //address to which NFT should be minted
-          arg("CatMoji # "+_id.toString(), types.String),
+          arg("CatMoji # " + _id.toString(), types.String),
           arg("Cat emojis on the blockchain", types.String),
-          arg("ipfs://bafybeigmeykxsur4ya2p3nw6r7hz2kp3r2clhvzwiqaashhz5efhewkkgu/"+_id+".png", types.String),
+          arg("ipfs://bafybeigmeykxsur4ya2p3nw6r7hz2kp3r2clhvzwiqaashhz5efhewkkgu/" + _id + ".png", types.String),
         ],
         proposer: fcl.currentUser,
         payer: fcl.currentUser,
@@ -170,7 +185,7 @@ function App() {
   }
 
   useEffect(() => {
-    fcl.currentUser().subscribe(setUser);  
+    fcl.currentUser().subscribe(setUser);
   }, [])
 
   useEffect(() => {
@@ -178,7 +193,7 @@ function App() {
       fetchNFTs();
     }
   }
-  , [user]);
+    , [user]);
 
   return (
     <div className="App">
@@ -186,18 +201,18 @@ function App() {
       <div className="container">
         <div className="header-container">
           <div className="logo-container">
-            <img src="./logo.png" className="flow-logo" alt="flow logo"/>
-            <p className="header">✨Awesome NFTs on Flow ✨</p>
+            <img src="./logo.png" className="flow-logo" alt="flow logo" />
+            <p className="header">✨10000 NFTs on Flow ✨</p>
           </div>
-          <RenderGif/>
-          <p className="sub-text">The easiest NFT mint experience ever!</p>
+          {/* <RenderGif/> */}
+          <p className="sub-text"> {total_supply} / 10000</p>
         </div>
 
         {user && user.addr ? <RenderMint /> : <RenderLogin />}
 
         <div className="footer-container">
-            <img alt="Twitter Logo" className="twitter-logo" src={twitterLogo} />
-            <a className="footer-text" href={TWITTER_LINK} target="_blank" rel="noreferrer">{`built on @${TWITTER_HANDLE}`}</a>
+          <img alt="Twitter Logo" className="twitter-logo" src={twitterLogo} />
+          <a className="footer-text" href={TWITTER_LINK} target="_blank" rel="noreferrer">{`built on @${TWITTER_HANDLE}`}</a>
         </div>
       </div>
     </div>
